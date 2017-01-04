@@ -36,7 +36,7 @@ import math
 
 class DBmbk:
     def __init__(self, f3kargs):
-        self.core = vs.get_core()
+        self.core = vs.get_core(threads=1)
         self.name = 'DBmbk'
         try:
             self.f3k_y = f3kargs['y']
