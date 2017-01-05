@@ -2,14 +2,14 @@
 ## 2017.01.04                               DBmbk 0.1.0
 ##               A de-banding script which dynamically adjust the values of y, cb, 
 ##               cr of f3kdb according to average luma of each frame. The intensity
-##               of adjustment can follow a elementary function or a bezier curve.
+##               of adjustment can follow an elementary function or a bezier curve.
 ##=====================================================================================
 ##
 ##               Made By Kewenyu - 1059902659@qq.com
 ##
 ##=====================================================================================
 ##
-## Reqirements:
+## Requirements:
 ##               F3kdb
 ##               Matplotlib (optional)
 ##
@@ -38,12 +38,22 @@ class DBmbk:
     def __init__(self, f3kargs):
         self.core = vs.get_core(threads=1)
         self.name = 'DBmbk'
+        self.f3kargs = f3kargs
         try:
             self.f3k_y = f3kargs['y']
+        except KeyError:
+            self.f3k_y = 64
+            self.f3kargs['y'] = self.f3k_y
+        try:
             self.f3k_cb = f3kargs['cb']
+        except KeyError:
+            self.f3k_cb = 32
+            self.f3kargs['cb'] = self.f3k_cb
+        try:
             self.f3k_cr = f3kargs['cr']
         except KeyError:
-            raise ValueError(self.name + ': y, cb, cr of f3kdb must be set !')
+            self.f3k_cr = 32
+            self.f3kargs['cr'] = self.f3k_cr
 
 class Elementary(DBmbk):
     def __init__(self, mode='lin', paraments=None, chroma=False, debug=0, **f3kargs):
@@ -56,7 +66,6 @@ class Elementary(DBmbk):
         elif mode is 'pow' and paraments is None:
             self.paraments = (20, 0.84, 3)
         self.chroma = chroma
-        self.f3kargs = f3kargs
         self.debug = debug
 
     def deband(self, clip):
@@ -113,10 +122,9 @@ class BezierCurve(DBmbk):
         self.accur = accur
         self.chroma = chroma
         self.debug = debug
-        self.f3kargs = f3kargs
 
     def bezier_x(self, t):
-        return 2 * self.anc_x * t * (1 - t) + t**2    # x0 is 0, x2 is 1
+        return 2 * self.anc_x * t * (1 - t) + t ** 2    # x0 is 0, x2 is 1
 
     def bezier_t(self, x):
         t = 0
@@ -165,6 +173,19 @@ class BezierCurve(DBmbk):
         for i in range(1000):
             num = i / 1000
             x.append(num)
-            y.append(self.bezier_y(num))
+            y.append(self.bezier_y(self.bezier_t(num)))
         plt.plot(x, y)
+        plt.axis([0, 1, 0, 128])
         plt.show()
+
+class CubicBezierCurve(BezierCurve):
+    def __init__(self, left=72, right=28, anc_x=0.3, anc_y=28, anc2_x=0.8, anc2_y=64, accur=0.001, chroma=False, debug=0, **f3kargs):
+        super(CubicBezierCurve, self).__init__(left, right, anc_x, anc_y, accur, chroma, debug, **f3kargs)
+        self.anc2_x = anc2_x
+        self.anc2_y = anc2_y
+
+    def bezier_x(self, t):
+        return 3 * self.anc_x * t * (1 - t) ** 2 + 3 * self.anc2_x * (1 - t) * t ** 2 + t ** 3    # x0 is 0, x3 is 1
+
+    def bezier_y(self, t):
+        return self.left * (1 - t) ** 3 + 3 * self.anc_y * t * (1 - t) ** 2 + 3 * self.anc2_y * (1 - t) * t ** 2 + self.right * t ** 3
