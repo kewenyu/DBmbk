@@ -1,5 +1,5 @@
 ﻿##=====================================================================================
-## 2017.01.04                               DBmbk 0.1.0
+## 2017.01.04                               DBmbk 0.1.1
 ##               A de-banding script which dynamically adjust the values of y, cb, 
 ##               cr of f3kdb according to average luma of each frame. The intensity
 ##               of adjustment can follow an elementary function or a bezier curve.
@@ -70,6 +70,7 @@ class Elementary(DBmbk):
 
     def deband(self, clip):
         clip = self.core.std.PlaneStats(clip, plane=0, prop='props')
+        self.f3kargs['output_depth'] = clip.format.bits_per_sample
 
         def adaptive_process(n, f, clip):
             average_luma = f.props.propsAverage
@@ -140,6 +141,7 @@ class BezierCurve(DBmbk):
 
     def deband(self, clip):
         clip = self.core.std.PlaneStats(clip, plane=0, prop='props')
+        self.f3kargs['output_depth'] = clip.format.bits_per_sample
 
         def adaptive_process(n, f, clip):
             average_luma = f.props.propsAverage
