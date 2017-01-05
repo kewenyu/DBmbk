@@ -75,6 +75,8 @@ class Elementary(DBmbk):
         def adaptive_process(n, f, clip):
             average_luma = f.props.propsAverage
 
+            # Calculate the bias by these elementary function and then
+            # add it to the y, cb, cr.
             if self.mode is 'lin':
                 if len(self.paraments) != 2:
                     raise ValueError(self.name + ': Incorrect paraments for this mode !')
@@ -101,10 +103,11 @@ class Elementary(DBmbk):
             dbed = self.core.f3kdb.Deband(clip, **self.f3kargs)
 
             if self.debug == 1:
-                text = 'Frames: {num}\nAverage Luma: {luma}\nShift: {shift}\nY: {y} ({y_org})\nCb: {cb} ({cb_org})\nCr: {cr} ({cr_org})'.format(num=n, luma=average_luma,
-                                                                                                                                         shift=bias, y=self.f3kargs['y'], 
-                                                                                                                                         cb=self.f3kargs['cb'], cr=self.f3kargs['cr'], 
-                                                                                                                                         y_org=self.f3k_y, cb_org=self.f3k_cb, cr_org=self.f3k_cr)
+                text = ('Frames: {num}\nAverage Luma: {luma}\nShift: {shift}\nY: {y} ({y_org})\n'
+                        'Cb: {cb} ({cb_org})\nCr: {cr} ({cr_org})').format(num=n, luma=average_luma,
+                                                                           shift=bias, y=self.f3kargs['y'], 
+                                                                           cb=self.f3kargs['cb'], cr=self.f3kargs['cr'], 
+                                                                           y_org=self.f3k_y, cb_org=self.f3k_cb, cr_org=self.f3k_cr)
                 out = self.core.text.Text(dbed, text)
             else:
                 out = dbed
@@ -124,6 +127,8 @@ class BezierCurve(DBmbk):
         self.chroma = chroma
         self.debug = debug
 
+    # Use the method of exhaustion to find a sloution of the parametric
+    # equation of the bezier curve.
     def bezier_x(self, t):
         return 2 * self.anc_x * t * (1 - t) + t ** 2    # x0 is 0, x2 is 1
 
@@ -134,6 +139,7 @@ class BezierCurve(DBmbk):
                 return t
             else:
                 t = t + self.accur
+        # It's unlikely to happen unless two accur above mismatch
         raise ValueError(self.name + ': Can\'t get a solution of bezier.')
 
     def bezier_y(self, t):
@@ -146,6 +152,7 @@ class BezierCurve(DBmbk):
         def adaptive_process(n, f, clip):
             average_luma = f.props.propsAverage
 
+            # Original setting of y will be ignored
             t = self.bezier_t(average_luma)
             self.f3kargs['y'] = min(max(int(self.bezier_y(t)), 0), 128)
             if self.chroma is True:
@@ -155,8 +162,10 @@ class BezierCurve(DBmbk):
             dbed = self.core.f3kdb.Deband(clip, **self.f3kargs)
 
             if self.debug == 1:
-                text = 'Frames: {num}\nAverage Luma: {luma}\nt: {t}\nY: {y}\nCb: {cb}\nCr: {cr}'.format(num=n, luma=average_luma, t=t,
-                                                                                                        y=self.f3kargs['y'], cb=self.f3kargs['cb'], cr=self.f3kargs['cr'])
+                text = ('Frames: {num}\nAverage Luma: {luma}\nt: {t}\n'
+                        'Y: {y}\nCb: {cb}\nCr: {cr}').format(num=n, luma=average_luma, t=t,
+                                                             y=self.f3kargs['y'], cb=self.f3kargs['cb'], 
+                                                             cr=self.f3kargs['cr'])
                 out = self.core.text.Text(dbed, text)
             else:
                 out = dbed
@@ -181,13 +190,19 @@ class BezierCurve(DBmbk):
         plt.show()
 
 class CubicBezierCurve(BezierCurve):
-    def __init__(self, left=72, right=28, anc_x=0.3, anc_y=28, anc2_x=0.8, anc2_y=64, accur=0.001, chroma=False, debug=0, **f3kargs):
+    def __init__(self, left=72, right=28, anc_x=0.3, anc_y=28, anc2_x=0.8,
+                 anc2_y=64, accur=0.001, chroma=False, debug=0, **f3kargs):
         super(CubicBezierCurve, self).__init__(left, right, anc_x, anc_y, accur, chroma, debug, **f3kargs)
         self.anc2_x = anc2_x
         self.anc2_y = anc2_y
 
+    # Change the parametric equation to cubic bezier curve
     def bezier_x(self, t):
-        return 3 * self.anc_x * t * (1 - t) ** 2 + 3 * self.anc2_x * (1 - t) * t ** 2 + t ** 3    # x0 is 0, x3 is 1
+        return (3 * self.anc_x * t * (1 - t) ** 2 + 
+                3 * self.anc2_x * (1 - t) * t ** 2 + t ** 3)    # x0 is 0, x3 is 1
 
     def bezier_y(self, t):
-        return self.left * (1 - t) ** 3 + 3 * self.anc_y * t * (1 - t) ** 2 + 3 * self.anc2_y * (1 - t) * t ** 2 + self.right * t ** 3
+        return (self.left * (1 - t) ** 3 + 
+                3 * self.anc_y * t * (1 - t) ** 2 + 
+                3 * self.anc2_y * (1 - t) * t ** 2 + 
+                self.right * t ** 3)
