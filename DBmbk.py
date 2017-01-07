@@ -36,7 +36,7 @@ import math
 
 class DBmbk:
     def __init__(self, f3kargs):
-        self.core = vs.get_core(threads=1)
+        self.core = vs.get_core()
         self.name = 'DBmbk'
         self.f3kargs = f3kargs
         try:
@@ -68,8 +68,10 @@ class Elementary(DBmbk):
         self.chroma = chroma
         self.debug = debug
 
-    def deband(self, clip):
-        clip = self.core.std.PlaneStats(clip, plane=0, prop='props')
+    def deband(self, clip, props_clip=None):
+        if props_clip is None:
+            props_clip = clip
+        props_clip = self.core.std.PlaneStats(props_clip, plane=0, prop='props')
         self.f3kargs['output_depth'] = clip.format.bits_per_sample
 
         def adaptive_process(n, f, clip):
@@ -114,7 +116,7 @@ class Elementary(DBmbk):
 
             return out
 
-        return self.core.std.FrameEval(clip, functools.partial(adaptive_process, clip=clip), prop_src=clip)
+        return self.core.std.FrameEval(clip, functools.partial(adaptive_process, clip=clip), prop_src=props_clip)
 
 class BezierCurve(DBmbk):
     def __init__(self, left=64, right=32, anc_x=0.4, anc_y=70, accur=0.001, chroma=False, debug=0, **f3kargs):
@@ -126,6 +128,9 @@ class BezierCurve(DBmbk):
         self.accur = accur
         self.chroma = chroma
         self.debug = debug
+
+        if self.anc_x <= 0 or self.anc_x >= 1:
+            raise ValueError(self.name + ": range of anc_x is (0,1) !")
 
     # Use the method of exhaustion to find a sloution of the parametric
     # equation of the bezier curve.
@@ -145,8 +150,10 @@ class BezierCurve(DBmbk):
     def bezier_y(self, t):
         return self.left * (1 - t) ** 2 + 2 * self.anc_y * t * (1 - t) + self.right * t ** 2
 
-    def deband(self, clip):
-        clip = self.core.std.PlaneStats(clip, plane=0, prop='props')
+    def deband(self, clip, props_clip=None):
+        if props_clip is None:
+            props_clip = clip
+        props_clip = self.core.std.PlaneStats(props_clip, plane=0, prop='props')
         self.f3kargs['output_depth'] = clip.format.bits_per_sample
 
         def adaptive_process(n, f, clip):
@@ -172,7 +179,7 @@ class BezierCurve(DBmbk):
             
             return out
 
-        return self.core.std.FrameEval(clip, functools.partial(adaptive_process, clip=clip), prop_src=clip)
+        return self.core.std.FrameEval(clip, functools.partial(adaptive_process, clip=clip), prop_src=props_clip)
 
     def show_curve(self):
         try:
@@ -195,6 +202,9 @@ class CubicBezierCurve(BezierCurve):
         super(CubicBezierCurve, self).__init__(left, right, anc_x, anc_y, accur, chroma, debug, **f3kargs)
         self.anc2_x = anc2_x
         self.anc2_y = anc2_y
+
+        if self.anc2_x <= 0 or self.anc2_x >= 1:
+            raise ValueError(self.name + ": the range of anc2_x is (0,1) !")
 
     # Change the parametric equation to cubic bezier curve
     def bezier_x(self, t):
