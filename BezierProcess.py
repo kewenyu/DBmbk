@@ -33,8 +33,8 @@ def bezier_process(clip, accur=0.01, input_range='pc', planes=0, debug=False, **
             raise ValueError(func_name + ': Incorrect input_range setting.')
         return normalized
 
-    x1 = coordinate.get('x1', normalize(85, input_range))
-    x2 = coordinate.get('x2', normalize(170, input_range))
+    x1 = normalize(coordinate.get('x1', 85), input_range)
+    x2 = normalize(coordinate.get('x2', 170), input_range)
     begin = coordinate.get('begin', 128)
     y1 = coordinate.get('y1', 128)
     y2 = coordinate.get('y2', 128)
@@ -53,7 +53,7 @@ def bezier_process(clip, accur=0.01, input_range='pc', planes=0, debug=False, **
 
     def bezier_t(x):
         t = 0
-        while t <= 1:
+        while t <= 1 + accur:
             if abs(bezier_x(t) - x) < accur:
                 return t
             t += accur
